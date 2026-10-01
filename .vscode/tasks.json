@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Step 13 Production Build",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"node_modules/next/dist/bin/next",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

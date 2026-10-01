@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Worker {
+  id                         String             @id @default(cuid())
+  workerId                   String             @unique
+  email                      String?            @unique
+  firstName                  String?
+  lastName                   String?
+  fullName                   String
+  phone                      String?
+  passwordHash               String
+  dateOfBirth                DateTime?          @db.Date
+  gender                     String?
+  profilePhoto               String?
+  address                    String?
+  professionalSummary        String?            @db.Text
+  currentJobTitle            String?
+  totalExperience            String?
+  expectedSalary             String?
+  preferredLocation          String?
+  linkedIn                  String?
+  github                     String?
+  portfolio                  String?
+  resumeUrl                  String?
+  profileCompletionPercentage Int                @default(0)
+  isActive                   Boolean            @default(true)
+  siteId                     String?
+  site                       Site?              @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  selectedSiteId             String?
+  selectedSite               Site?              @relation("WorkerSelectedSite", fields: [selectedSiteId], references: [id], onDelete: SetNull)
+  attendances                Attendance[]
+  educations                 WorkerEducation[]
+  experiences                WorkerExperience[]
+  skills                     WorkerSkill[]
+  resumes                    WorkerResume[]
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+}
+
+model WorkerEducation {
+  id            String   @id @default(cuid())
+  workerId      String
+  worker        Worker    @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  degree        String
+  fieldOfStudy  String?
+  institution   String
+  startYear     Int?
+  endYear       Int?
+  grade         String?
+  description   String?  @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model WorkerExperience {
+  id               String    @id @default(cuid())
+  workerId         String
+  worker           Worker     @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  companyName      String
+  jobTitle         String
+  employmentType   String?
+  startDate        DateTime? @db.Date
+  endDate          DateTime? @db.Date
+  currentlyWorking Boolean   @default(false)
+  location         String?
+  description      String?   @db.Text
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model WorkerSkill {
+  id         String   @id @default(cuid())
+  workerId   String
+  worker     Worker    @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  skillName  String
+  skillLevel String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([workerId, skillName])
+}
+
+model WorkerResume {
+  id          String   @id @default(cuid())
+  workerId    String
+  worker      Worker    @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  fileName    String
+  storedPath  String
+  fileSize    Int
+  mimeType    String
+  uploadedAt  DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Site {
+  id                  String      @id @default(cuid())
+  name                String
+  address             String
+  latitude            Decimal     @db.Decimal(9, 6)
+  longitude           Decimal     @db.Decimal(9, 6)
+  allowedRadiusMeters Int
+  isActive            Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  workers             Worker[]
+  selectedWorkers     Worker[]            @relation("WorkerSelectedSite")
+  attendances         Attendance[]
+}
+
+enum AttendanceStatus {
+  PRESENT
+  IN_PROGRESS
+  COMPLETED
+  OUTSIDE_SITE
+}
+
+model Attendance {
+  id                     String            @id @default(cuid())
+  workerId               String
+  worker                 Worker            @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  siteId                 String
+  site                   Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  attendanceDate         DateTime          @db.Date
+  checkInTime            DateTime
+  checkOutTime           DateTime?
+  latitude               Decimal           @db.Decimal(9, 6)
+  longitude              Decimal           @db.Decimal(9, 6)
+  checkOutLatitude       Decimal?          @db.Decimal(9, 6)
+  checkOutLongitude      Decimal?          @db.Decimal(9, 6)
+  distanceFromSiteMeters Decimal           @db.Decimal(10, 2)
+  totalWorkingMinutes    Int?
+  status                 AttendanceStatus  @default(PRESENT)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  @@unique([workerId, attendanceDate])
+}
