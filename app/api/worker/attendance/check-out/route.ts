@@ -26,7 +26,6 @@ export async function POST(request: Request) {
   const attendanceDate = indiaDateOnly();
   const attendance = await prisma.attendance.findUnique({
     where: { workerId_attendanceDate: { workerId: session.userId, attendanceDate } },
-    select: { id: true, checkInTime: true, checkOutTime: true, totalWorkingMinutes: true, status: true },
   });
 
   if (!attendance) {
@@ -40,17 +39,9 @@ export async function POST(request: Request) {
   }
 
   const checkOutTime = new Date();
-  const elapsedMilliseconds = checkOutTime.getTime() - attendance.checkInTime.getTime();
-  if (!Number.isFinite(elapsedMilliseconds) || elapsedMilliseconds < 0) {
-    return NextResponse.json({ error: "The attendance check-in time is invalid. Please contact the administrator." }, { status: 422 });
-  }
-  const totalWorkingMinutes = Math.floor(elapsedMilliseconds / 60000);
-  const completion = await prisma.attendance.updateMany({
-    where: {
-      id: attendance.id,
-      checkOutTime: null,
-      status: { in: ["IN_PROGRESS", "PRESENT"] },
-    },
+  const totalWorkingMinutes = Math.max(0, Math.floor((checkOutTime.getTime() - attendance.checkInTime.getTime()) / 60000));
+  const updated = await prisma.attendance.update({
+    where: { id: attendance.id },
     data: {
       checkOutTime,
       checkOutLatitude: latitude,
@@ -59,18 +50,6 @@ export async function POST(request: Request) {
       status: "COMPLETED",
     },
   });
-
-  if (completion.count === 0) {
-    return NextResponse.json({ error: "Attendance has already been completed for today." }, { status: 409 });
-  }
-
-  const updated = await prisma.attendance.findUnique({
-    where: { id: attendance.id },
-    select: { checkOutTime: true, totalWorkingMinutes: true },
-  });
-  if (!updated) {
-    return NextResponse.json({ error: "Attendance record could not be loaded." }, { status: 404 });
-  }
 
   return NextResponse.json({
     message: "Attendance completed.",

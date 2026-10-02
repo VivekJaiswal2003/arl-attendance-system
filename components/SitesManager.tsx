@@ -122,7 +122,12 @@ export function SitesManager({ initialSites }: { initialSites: SiteRecord[] }) {
     }
   }
 
-  async function deleteSite(siteId: string) {
+  async function deleteSite(siteId: string, siteName: string) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${siteName}"? This cannot be undone. Sites with assigned workers or attendance history cannot be deleted — deactivate them instead.`,
+    );
+    if (!confirmed) return;
+
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -252,7 +257,7 @@ export function SitesManager({ initialSites }: { initialSites: SiteRecord[] }) {
                         <button className="button-secondary small-button" type="button" onClick={() => toggleSite(site.id, site.isActive)} disabled={saving}>
                           {site.isActive ? "Deactivate" : "Activate"}
                         </button>
-                        <button className="button-danger small-button" type="button" onClick={() => deleteSite(site.id)} disabled={saving}>Delete</button>
+                        <button className="button-danger small-button" type="button" onClick={() => deleteSite(site.id, site.name)} disabled={saving}>Delete</button>
                       </div>
                     </td>
                   </tr>

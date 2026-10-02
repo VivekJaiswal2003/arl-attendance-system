@@ -39,6 +39,7 @@ export default async function ProfilePage() {
       educations: { orderBy: { endYear: "desc" }, select: { id: true, degree: true, fieldOfStudy: true, institution: true, startYear: true, endYear: true, grade: true, description: true } },
       experiences: { orderBy: { startDate: "desc" }, select: { id: true, companyName: true, jobTitle: true, employmentType: true, startDate: true, endDate: true, currentlyWorking: true, location: true, description: true } },
       resumes: { orderBy: { uploadedAt: "desc" }, where: { isActive: true }, select: { id: true, fileName: true, fileSize: true, mimeType: true } },
+      document: { select: { id: true, fileName: true, fileSize: true, contentType: true, uploadedAt: true, updatedAt: true } },
     },
   });
 
@@ -93,12 +94,17 @@ export default async function ProfilePage() {
           linkedIn: worker.linkedIn,
           github: worker.github,
           portfolio: worker.portfolio,
-          resumeUrl: worker.resumeUrl,
           profileCompletionPercentage: completion,
-          educations: worker.educations,
-          experiences: worker.experiences.map((experience) => ({ ...experience, startDate: dateValue(experience.startDate), endDate: dateValue(experience.endDate) })),
-          skills: worker.skills,
-          resumes: worker.resumes.map(({ id, fileName, mimeType, fileSize }) => ({ id, fileName, mimeType, fileSize })),
+          document: worker.document
+            ? {
+                id: worker.document.id,
+                fileName: worker.document.fileName,
+                fileSize: worker.document.fileSize,
+                contentType: worker.document.contentType,
+                uploadedAt: worker.document.uploadedAt.toISOString(),
+                updatedAt: worker.document.updatedAt.toISOString(),
+              }
+            : null,
         }} />
       </div>
     </main>

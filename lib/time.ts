@@ -21,41 +21,57 @@ function getIndiaDateParts(date = new Date()): { year: number; month: number; da
 
 export function indiaDateOnly(date = new Date()): Date {
   const { year, month, day } = getIndiaDateParts(date);
-  return new Date(Date.UTC(year, month - 1, day));
+  return new Date(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00+05:30`);
 }
 
 export function indiaDateKey(date = new Date()): string {
   const { year, month, day } = getIndiaDateParts(date);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
-export function indiaDateFromKey(dateKey: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+
+/**
+ * Parses a "YYYY-MM-DD" date key into a Date representing midnight of that
+ * day in the India timezone. Returns null when the key is missing or not a
+ * valid calendar date.
+ */
+export function indiaDateFromKey(key: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key.trim());
   if (!match) return null;
 
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const date = new Date(`${yearText}-${monthText}-${dayText}T00:00:00+05:30`);
+  if (Number.isNaN(date.getTime())) return null;
+
+  // Reject values like "2024-02-31" that `Date` would otherwise silently roll forward.
+  const parts = getIndiaDateParts(date);
+  if (parts.year !== year || parts.month !== month || parts.day !== day) return null;
+
   return date;
 }
 
-export function indiaMonthRange(monthKey: string): { start: Date; end: Date } {
-  const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
-  if (!match) {
-    throw new Error("Month must use YYYY-MM format.");
-  }
+/**
+ * Computes the [start, end) range covering a whole calendar month in the
+ * India timezone, for a "YYYY-MM" month key. `end` is the first instant of
+ * the following month, so the range can be used directly in an exclusive
+ * upper-bound (`lt`) query filter.
+ */
+export function indiaMonthRange(month: string): { start: Date; end: Date } {
+  const match = /^(\d{4})-(\d{2})$/.exec(month.trim());
+  const [yearText, monthText] = match ? [match[1], match[2]] : indiaDateKey().slice(0, 7).split("-");
 
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  if (month < 1 || month > 12) {
-    throw new Error("Month must be between 01 and 12.");
-  }
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1; // 0-based
+  const nextMonthIndex = monthIndex + 1;
+  const nextYear = year + Math.floor(nextMonthIndex / 12);
+  const normalizedNextMonth = ((nextMonthIndex % 12) + 12) % 12;
 
-  const nextMonth = month === 12 ? 1 : month + 1;
-  const nextYear = month === 12 ? year + 1 : year;
-  return {
-    start: new Date(Date.UTC(year, month - 1, 1)),
-    end: new Date(Date.UTC(nextYear, nextMonth - 1, 1)),
-  };
+  const start = new Date(`${yearText}-${monthText}-01T00:00:00+05:30`);
+  const end = new Date(`${nextYear}-${String(normalizedNextMonth + 1).padStart(2, "0")}-01T00:00:00+05:30`);
+
+  return { start, end };
 }

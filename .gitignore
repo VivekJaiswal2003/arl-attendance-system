@@ -10,3 +10,5 @@ private/
 /buildlog.txt
 /nextbuild*.txt
 /prisma_validate*.txt
+.vercel
+.env*

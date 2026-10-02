@@ -146,11 +146,25 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "This site cannot be deleted because workers are assigned to it." }, { status: 409 });
     }
 
+    const attendanceCount = await prisma.attendance.count({ where: { siteId } });
+    if (attendanceCount > 0) {
+      return NextResponse.json(
+        { error: "This site has historical attendance records and cannot be deleted. Deactivate it instead to preserve attendance history." },
+        { status: 409 },
+      );
+    }
+
     await prisma.site.delete({ where: { id: siteId } });
     return NextResponse.json({ message: "Site deleted." });
   } catch (error: unknown) {
     if ((error as { code?: string })?.code === "P2025") {
       return NextResponse.json({ error: "Site not found." }, { status: 404 });
+    }
+    if ((error as { code?: string })?.code === "P2003") {
+      return NextResponse.json(
+        { error: "This site has related records and cannot be deleted. Deactivate it instead to preserve attendance history." },
+        { status: 409 },
+      );
     }
     return NextResponse.json({ error: "Site could not be deleted." }, { status: 500 });
   }

@@ -44,6 +44,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ wor
       educations: { select: { id: true, degree: true, fieldOfStudy: true, institution: true, startYear: true, endYear: true, grade: true, description: true } },
       experiences: { select: { id: true, companyName: true, jobTitle: true, employmentType: true, startDate: true, endDate: true, currentlyWorking: true, location: true, description: true } },
       resumes: { where: { isActive: true }, select: { id: true, fileName: true, fileSize: true, mimeType: true, uploadedAt: true, isActive: true } },
+      document: { select: { id: true, fileName: true, fileSize: true, contentType: true, uploadedAt: true, updatedAt: true } },
       attendances: {
         orderBy: { checkInTime: "desc" },
         take: 10,
@@ -161,4 +162,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ wor
   }
 
   return response;
+}
+
+/**
+ * "Delete Worker" is implemented as a safe deactivation rather than a real
+ * row delete. Attendance.worker uses onDelete: Cascade, so an actual delete
+ * would silently wipe out historical attendance records for this worker --
+ * which is explicitly forbidden. Deactivating instead: disables login,
+ * clears the worker's currently-selected site (so they stop appearing as
+ * "on site"), and keeps every attendance record intact for reporting.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ workerId: string }> }) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { workerId } = await params;
+  const worker = await prisma.worker.findUnique({ where: { id: workerId }, select: { id: true } });
+  if (!worker) {
+    return NextResponse.json({ error: "Worker not found." }, { status: 404 });
+  }
+
+  await prisma.worker.update({
+    where: { id: workerId },
+    data: { isActive: false, selectedSiteId: null },
+  });
+
+  return NextResponse.json({ ok: true });
 }

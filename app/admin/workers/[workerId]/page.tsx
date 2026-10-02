@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/AdminShell";
+import { DeleteWorkerButton } from "@/components/DeleteWorkerButton";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { INDIA_TIMEZONE } from "@/lib/time";
@@ -48,6 +49,7 @@ export default async function AdminWorkerDetailPage({
       educations: { select: { id: true, degree: true, institution: true } },
       experiences: { select: { id: true, jobTitle: true, companyName: true } },
       resumes: { where: { isActive: true }, select: { id: true, fileName: true, mimeType: true, isActive: true } },
+      document: { select: { id: true, fileName: true, fileSize: true, uploadedAt: true } },
       attendances: {
         orderBy: { checkInTime: "desc" },
         take: 10,
@@ -78,6 +80,7 @@ export default async function AdminWorkerDetailPage({
           <p>{worker.email ?? "No email provided"} · {worker.workerId}</p>
         </div>
         <Link href="/admin/workers" className="button-secondary small-button">Back to workers</Link>
+        <DeleteWorkerButton workerId={worker.id} workerName={worker.fullName} />
       </div>
       {query.saved === "1" && <p className="form-success" role="status">Worker changes saved.</p>}
 
@@ -136,6 +139,21 @@ export default async function AdminWorkerDetailPage({
         <section className="panel">
           <div className="panel-header"><div><h2 className="panel-title">Resume</h2><span className="panel-note">Uploaded files</span></div></div>
           {worker.resumes.length === 0 ? <div className="empty-state"><strong>No resume</strong><span>No resume has been uploaded.</span></div> : <ul className="list">{worker.resumes.map((resume) => <li key={resume.id} className="list-row"><a className="text-link" href={`/api/admin/workers/${worker.id}/resume/${resume.id}`} target="_blank" rel="noreferrer">{resume.fileName}</a><strong>{resume.mimeType}</strong></li>)}</ul>}
+        </section>
+      </div>
+
+      <div className="two-column" style={{ marginTop: 24 }}>
+        <section className="panel">
+          <div className="panel-header"><div><h2 className="panel-title">Documents</h2><span className="panel-note">Required document bundle</span></div></div>
+          {worker.document ? (
+            <ul className="list">
+              <li className="list-row">
+                <a className="text-link" href={`/api/admin/workers/${worker.id}/documents/file`} target="_blank" rel="noreferrer">{worker.document.fileName}</a>
+                <strong>{(worker.document.fileSize / (1024 * 1024)).toFixed(1)} MB</strong>
+              </li>
+              <li className="list-row"><span>Uploaded</span><strong>{worker.document.uploadedAt.toLocaleDateString("en-IN", { timeZone: "UTC" })}</strong></li>
+            </ul>
+          ) : <div className="empty-state"><strong>No documents</strong><span>This worker has not uploaded their documents yet.</span></div>}
         </section>
       </div>
 

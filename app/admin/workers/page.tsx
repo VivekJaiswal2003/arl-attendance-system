@@ -41,6 +41,7 @@ export default async function WorkersPage({
         phone: true,
         selectedSite: { select: { name: true } },
         resumes: { where: { isActive: true }, select: { id: true }, take: 1 },
+        document: { select: { id: true } },
         attendances: { where: { attendanceDate: today }, select: { status: true }, take: 1 },
       },
     }),
@@ -60,7 +61,7 @@ export default async function WorkersPage({
           <button className="button-primary small-button" type="submit">Apply</button>
         </form>
       </div>
-      {workers.length === 0 ? <EmptyState title="No workers match the current filters" message="Try a broader query." /> : <div className="table-wrap"><table><thead><tr><th>Worker</th><th>Employee ID</th><th>Role / Profile</th><th>Email</th><th>Phone</th><th>Selected site</th><th>Today</th><th>Resume</th><th>Status</th><th>Actions</th></tr></thead><tbody>{workers.map((worker) => <tr key={worker.id}><td>{worker.fullName}</td><td>{worker.workerId}</td><td>{worker.currentJobTitle ?? "Profile pending"}<div className="table-subtext">{worker.profileCompletionPercentage}% complete</div></td><td>{worker.email ?? "Not provided"}</td><td>{worker.phone ?? "Not provided"}</td><td>{worker.selectedSite?.name ?? "Not selected"}</td><td>{worker.attendances[0]?.status ?? "Not checked in"}</td><td>{worker.resumes.length ? "Available" : "Missing"}</td><td><span className={`status ${worker.isActive ? "status-present" : "status-absent"}`}>{worker.isActive ? "Active" : "Inactive"}</span></td><td><Link href={`/admin/workers/${worker.id}`} className="text-link">View</Link></td></tr>)}</tbody></table></div>}
+      {workers.length === 0 ? <EmptyState title="No workers match the current filters" message="Try a broader query." /> : <div className="table-wrap"><table><thead><tr><th>Worker</th><th>Employee ID</th><th>Role / Profile</th><th>Email</th><th>Phone</th><th>Selected site</th><th>Today</th><th>Resume</th><th>Documents</th><th>Status</th><th>Actions</th></tr></thead><tbody>{workers.map((worker) => <tr key={worker.id}><td>{worker.fullName}</td><td>{worker.workerId}</td><td>{worker.currentJobTitle ?? "Profile pending"}<div className="table-subtext">{worker.profileCompletionPercentage}% complete</div></td><td>{worker.email ?? "Not provided"}</td><td>{worker.phone ?? "Not provided"}</td><td>{worker.selectedSite?.name ?? "Not selected"}</td><td>{worker.attendances[0]?.status ?? "Not checked in"}</td><td>{worker.resumes.length ? "Available" : "Missing"}</td><td>{worker.document ? "Uploaded" : "Missing"}</td><td><span className={`status ${worker.isActive ? "status-present" : "status-absent"}`}>{worker.isActive ? "Active" : "Inactive"}</span></td><td><Link href={`/admin/workers/${worker.id}`} className="text-link">View</Link></td></tr>)}</tbody></table></div>}
     </section>
   </AdminShell>;
 }

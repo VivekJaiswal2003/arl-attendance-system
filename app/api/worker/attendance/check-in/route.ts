@@ -6,13 +6,14 @@ import { prisma } from "@/lib/prisma";
 import { indiaDateOnly } from "@/lib/time";
 
 const checkInSchema = z.object({
+  siteId: z.string().min(1, "Select a work site."),
   latitude: z.coerce.number().refine((value) => Number.isFinite(value), {
     message: "Latitude must be a valid number.",
   }),
   longitude: z.coerce.number().refine((value) => Number.isFinite(value), {
     message: "Longitude must be a valid number.",
   }),
-  accuracy: z.coerce.number().finite().positive(),
+  accuracy: z.coerce.number().optional(),
   timestamp: z.coerce.number().optional(),
 });
 
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 
   const latitude = parsed.data.latitude;
   const longitude = parsed.data.longitude;
-  const accuracy = parsed.data.accuracy;
+  const accuracy = parsed.data.accuracy ?? Number.POSITIVE_INFINITY;
 
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
     return NextResponse.json({ error: "Latitude must be between -90 and 90." }, { status: 400 });
@@ -53,31 +54,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const worker = await prisma.worker.findUnique({
-      where: { id: session.userId },
-      select: {
-        id: true,
-        isActive: true,
-        selectedSiteId: true,
-      },
-    });
+    const worker = await prisma.worker.findUnique({ where: { id: session.userId }, select: { id: true } });
 
-    if (!worker || !worker.isActive) {
+    if (!worker) {
       return NextResponse.json({ error: "Worker not found." }, { status: 404 });
     }
 
-    if (!worker.selectedSiteId) {
-      return NextResponse.json({ error: "Please select a work site before marking attendance." }, { status: 422 });
-    }
-    const site = await prisma.site.findUnique({
-      where: { id: worker.selectedSiteId },
-      select: { id: true, name: true, latitude: true, longitude: true, allowedRadiusMeters: true, isActive: true },
-    });
+    const site = await prisma.site.findFirst({ where: { id: parsed.data.siteId, isActive: true } });
     if (!site) {
-      return NextResponse.json({ error: "Your assigned work site could not be found. Please contact the administrator." }, { status: 422 });
-    }
-    if (!site.isActive) {
-      return NextResponse.json({ error: "Your selected work site is inactive. Please select an active site." }, { status: 422 });
+      return NextResponse.json({ error: "Selected work site is not active or no longer exists." }, { status: 422 });
     }
 
     const attendanceDate = indiaDateOnly();
@@ -89,7 +74,6 @@ export async function POST(request: Request) {
           attendanceDate,
         },
       },
-      select: { id: true },
     });
 
     if (existingAttendance) {
@@ -105,13 +89,7 @@ export async function POST(request: Request) {
 
     const withinRadius = distanceFromSiteMeters <= site.allowedRadiusMeters;
     if (!withinRadius) {
-      return NextResponse.json({
-        error: `You are ${Math.round(distanceFromSiteMeters)} meters from ${site.name}. Allowed radius is ${site.allowedRadiusMeters} meters.`,
-        distanceFromSiteMeters,
-        allowedRadiusMeters: site.allowedRadiusMeters,
-        siteName: site.name,
-        status: "OUTSIDE_SITE",
-      }, { status: 422 });
+      return NextResponse.json({ error: "You are outside the allowed work-site area.", distanceFromSiteMeters, allowedRadiusMeters: site.allowedRadiusMeters, status: "OUTSIDE_SITE" }, { status: 422 });
     }
     const status = "PRESENT";
 
@@ -127,7 +105,6 @@ export async function POST(request: Request) {
         distanceFromSiteMeters: distanceFromSiteMeters,
         status,
       },
-      select: { checkInTime: true, distanceFromSiteMeters: true },
     });
 
     return NextResponse.json({
