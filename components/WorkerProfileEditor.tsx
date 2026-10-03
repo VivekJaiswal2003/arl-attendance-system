@@ -22,14 +22,9 @@ type WorkerProfileData = {
   phone?: string | null;
   address?: string | null;
   dateOfBirth?: string | null;
-  professionalSummary?: string | null;
   currentJobTitle?: string | null;
   totalExperience?: string | null;
-  expectedSalary?: string | null;
   preferredLocation?: string | null;
-  linkedIn?: string | null;
-  github?: string | null;
-  portfolio?: string | null;
   profileCompletionPercentage: number;
   document: DocumentItem | null;
 };
@@ -73,14 +68,9 @@ export function WorkerProfileEditor({ initialWorker }: { initialWorker: WorkerPr
       worker.email,
       worker.phone,
       worker.address,
-      worker.professionalSummary,
       worker.currentJobTitle,
       worker.totalExperience,
-      worker.expectedSalary,
       worker.preferredLocation,
-      worker.linkedIn,
-      worker.github,
-      worker.portfolio,
     ];
     const filled = values.filter((value) => typeof value === "string" && value.trim().length > 0).length;
     const documentFilled = worker.document ? 1 : 0;
@@ -103,14 +93,9 @@ export function WorkerProfileEditor({ initialWorker }: { initialWorker: WorkerPr
           phone: worker.phone ?? "",
           address: worker.address ?? "",
           dateOfBirth: worker.dateOfBirth ?? "",
-          professionalSummary: worker.professionalSummary ?? "",
           currentJobTitle: worker.currentJobTitle ?? "",
           totalExperience: worker.totalExperience ?? "",
-          expectedSalary: worker.expectedSalary ?? "",
           preferredLocation: worker.preferredLocation ?? "",
-          linkedIn: worker.linkedIn ?? "",
-          github: worker.github ?? "",
-          portfolio: worker.portfolio ?? "",
         }),
       });
 
@@ -204,14 +189,9 @@ export function WorkerProfileEditor({ initialWorker }: { initialWorker: WorkerPr
           <label className="form-label">Email<input className="form-input" type="email" value={worker.email ?? ""} readOnly /></label>
           <label className="form-label">Phone<input className="form-input" type="tel" value={worker.phone ?? ""} onChange={(event) => setWorker({ ...worker, phone: event.target.value })} /></label>
           <label className="form-label">Date of birth<input className="form-input" type="date" value={worker.dateOfBirth ?? ""} onChange={(event) => setWorker({ ...worker, dateOfBirth: event.target.value })} /></label>
-          <label className="form-label full-width">Professional Summary<textarea className="form-input" rows={4} value={worker.professionalSummary ?? ""} onChange={(event) => setWorker({ ...worker, professionalSummary: event.target.value })} /></label>
           <label className="form-label">Current Job Title<input className="form-input" value={worker.currentJobTitle ?? ""} onChange={(event) => setWorker({ ...worker, currentJobTitle: event.target.value })} /></label>
           <label className="form-label">Total Experience<input className="form-input" value={worker.totalExperience ?? ""} onChange={(event) => setWorker({ ...worker, totalExperience: event.target.value })} /></label>
-          <label className="form-label">Expected Salary<input className="form-input" value={worker.expectedSalary ?? ""} onChange={(event) => setWorker({ ...worker, expectedSalary: event.target.value })} /></label>
           <label className="form-label">Preferred Location<input className="form-input" value={worker.preferredLocation ?? ""} onChange={(event) => setWorker({ ...worker, preferredLocation: event.target.value })} /></label>
-          <label className="form-label">LinkedIn<input className="form-input" value={worker.linkedIn ?? ""} onChange={(event) => setWorker({ ...worker, linkedIn: event.target.value })} /></label>
-          <label className="form-label">GitHub<input className="form-input" value={worker.github ?? ""} onChange={(event) => setWorker({ ...worker, github: event.target.value })} /></label>
-          <label className="form-label">Portfolio<input className="form-input" value={worker.portfolio ?? ""} onChange={(event) => setWorker({ ...worker, portfolio: event.target.value })} /></label>
           <label className="form-label full-width">Address<input className="form-input" value={worker.address ?? ""} onChange={(event) => setWorker({ ...worker, address: event.target.value })} /></label>
         </div>
         <button className="button-primary" type="submit">Save profile</button>
