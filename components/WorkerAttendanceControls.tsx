@@ -73,7 +73,7 @@ export function WorkerAttendanceControls({ selectedSite, availableSites, selecti
       });
       gpsReceived = true;
       setLocationStatus("GPS location received");
-      const response = await fetch("/api/worker/attendance/check-in", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, timestamp: position.timestamp }) });
+      const response = await fetch("/api/worker/attendance/check-in", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ siteId: site.id, latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy }) });
       const result = await response.json() as { error?: string; message?: string; status?: string; distanceFromSiteMeters?: number; allowedRadiusMeters?: number; siteName?: string; checkInTime?: string };
       if (!response.ok) throw new Error(result.error ?? "Something went wrong. Please try again.");
       setAttendance({ status: result.status ?? "IN_PROGRESS", checkInTime: result.checkInTime ?? new Date().toISOString(), distanceFromSiteMeters: result.distanceFromSiteMeters ?? 0, totalWorkingMinutes: null });

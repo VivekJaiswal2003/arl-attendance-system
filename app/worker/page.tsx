@@ -7,6 +7,10 @@ import { WorkerAttendanceControls } from "@/components/WorkerAttendanceControls"
 
 export const dynamic = "force-dynamic";
 
+function formatWorkingDuration(minutes: number) {
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
 export default async function WorkerPage() {
   const session = await getSession();
   if (!session || session.role !== "WORKER") {
@@ -31,6 +35,13 @@ export default async function WorkerPage() {
   const selectedSite = worker?.selectedSite?.isActive ? worker.selectedSite : null;
   const activeSites = await prisma.site.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, address: true, allowedRadiusMeters: true } });
   const profileCompletion = worker?.profileCompletionPercentage ?? 0;
+  const attendanceStatus = todayAttendance?.checkOutTime || todayAttendance?.status === "COMPLETED"
+    ? "Completed"
+    : todayAttendance && ["PRESENT", "IN_PROGRESS"].includes(todayAttendance.status)
+      ? "In Progress"
+      : todayAttendance?.status === "OUTSIDE_SITE"
+        ? "Outside site"
+        : "Not checked in";
 
   return (
     <main className="worker-page">
@@ -54,7 +65,7 @@ export default async function WorkerPage() {
             <div><div className="detail-label">Allowed radius</div><div className="detail-value">{selectedSite ? `${selectedSite.allowedRadiusMeters} meters` : "Not available"}</div></div>
             <div><div className="detail-label">Preferred location</div><div className="detail-value">{worker?.preferredLocation ?? "Not set"}</div></div>
           </div>
-          <div className="attendance-status"><div className="detail-label">Current attendance status</div><div className="detail-value">{todayAttendance ? ["PRESENT", "IN_PROGRESS", "COMPLETED"].includes(todayAttendance.status) ? "Present today" : todayAttendance.status === "OUTSIDE_SITE" ? "Outside site" : "Not checked in" : "Not checked in"}</div>{todayAttendance && <div className="status-detail">Checked in at {todayAttendance.checkInTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} · {Math.round(Number(todayAttendance.distanceFromSiteMeters))} m from site</div>}</div>
+          <div className="attendance-status"><div className="detail-label">Current attendance status</div><div className="detail-value">{attendanceStatus}</div>{todayAttendance && <div className="status-detail">Checked in at {todayAttendance.checkInTime.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} · {Math.round(Number(todayAttendance.distanceFromSiteMeters))} m from site{attendanceStatus === "Completed" && todayAttendance.totalWorkingMinutes !== null ? ` · Working hours: ${formatWorkingDuration(todayAttendance.totalWorkingMinutes ?? 0)}` : ""}</div>}</div>
           <WorkerAttendanceControls
             selectedSite={selectedSite ? { id: selectedSite.id, name: selectedSite.name, address: selectedSite.address, allowedRadiusMeters: selectedSite.allowedRadiusMeters } : null}
             availableSites={activeSites}

@@ -3,24 +3,12 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { indiaDateOnly } from "@/lib/time";
 
-export async function POST(request: Request) {
+const REQUIRED_WORKING_MINUTES = 8 * 60;
+
+export async function POST() {
   const session = await getSession();
   if (!session || session.role !== "WORKER") {
     return NextResponse.json({ error: "Please log in again." }, { status: 401 });
-  }
-
-  let body: unknown = {};
-  try {
-    body = await request.json();
-  } catch {
-    body = {};
-  }
-
-  const payload = body as { latitude?: unknown; longitude?: unknown };
-  const latitude = typeof payload.latitude === "number" && Number.isFinite(payload.latitude) ? payload.latitude : null;
-  const longitude = typeof payload.longitude === "number" && Number.isFinite(payload.longitude) ? payload.longitude : null;
-  if (latitude !== null && (latitude < -90 || latitude > 90) || longitude !== null && (longitude < -180 || longitude > 180)) {
-    return NextResponse.json({ error: "Invalid checkout location." }, { status: 400 });
   }
 
   const attendanceDate = indiaDateOnly();
@@ -39,21 +27,40 @@ export async function POST(request: Request) {
   }
 
   const checkOutTime = new Date();
+  const elapsedMilliseconds = checkOutTime.getTime() - attendance.checkInTime.getTime();
+  const requiredMilliseconds = REQUIRED_WORKING_MINUTES * 60_000;
+  if (elapsedMilliseconds < requiredMilliseconds) {
+    const remainingMinutes = Math.ceil((requiredMilliseconds - elapsedMilliseconds) / 60_000);
+    const hours = Math.floor(remainingMinutes / 60);
+    const minutes = remainingMinutes % 60;
+    const remaining = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    return NextResponse.json({
+      error: `You can check out after completing 8 hours. Please wait ${remaining}.`,
+      remainingMinutes,
+    }, { status: 422 });
+  }
+
   const totalWorkingMinutes = Math.max(0, Math.floor((checkOutTime.getTime() - attendance.checkInTime.getTime()) / 60000));
-  const updated = await prisma.attendance.update({
-    where: { id: attendance.id },
+  const updateResult = await prisma.attendance.updateMany({
+    where: {
+      id: attendance.id,
+      checkOutTime: null,
+      status: { in: ["IN_PROGRESS", "PRESENT"] },
+    },
     data: {
       checkOutTime,
-      checkOutLatitude: latitude,
-      checkOutLongitude: longitude,
       totalWorkingMinutes,
       status: "COMPLETED",
     },
   });
 
+  if (updateResult.count === 0) {
+    return NextResponse.json({ error: "Attendance has already been completed for today." }, { status: 409 });
+  }
+
   return NextResponse.json({
     message: "Attendance completed.",
-    checkOutTime: updated.checkOutTime?.toISOString(),
-    totalWorkingMinutes: updated.totalWorkingMinutes,
+    checkOutTime: checkOutTime.toISOString(),
+    totalWorkingMinutes,
   });
 }

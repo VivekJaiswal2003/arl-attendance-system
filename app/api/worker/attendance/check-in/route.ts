@@ -6,16 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { indiaDateOnly } from "@/lib/time";
 
 const checkInSchema = z.object({
-  siteId: z.string().min(1, "Select a work site."),
-  latitude: z.coerce.number().refine((value) => Number.isFinite(value), {
-    message: "Latitude must be a valid number.",
-  }),
-  longitude: z.coerce.number().refine((value) => Number.isFinite(value), {
-    message: "Longitude must be a valid number.",
-  }),
-  accuracy: z.coerce.number().optional(),
-  timestamp: z.coerce.number().optional(),
-});
+  siteId: z.string().trim().min(1, "Select a work site.").max(191),
+  latitude: z.number().finite().min(-90, "Latitude must be between -90 and 90.").max(90, "Latitude must be between -90 and 90."),
+  longitude: z.number().finite().min(-180, "Longitude must be between -180 and 180.").max(180, "Longitude must be between -180 and 180."),
+  accuracy: z.number().finite().min(0, "GPS accuracy must be a valid non-negative number.").max(200, "GPS accuracy is too poor. Please enable better location accuracy and try again."),
+}).strict();
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -35,32 +30,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid location data." }, { status: 400 });
   }
 
-  const latitude = parsed.data.latitude;
-  const longitude = parsed.data.longitude;
-  const accuracy = parsed.data.accuracy ?? Number.POSITIVE_INFINITY;
-
-  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-    return NextResponse.json({ error: "Latitude must be between -90 and 90." }, { status: 400 });
-  }
-
-  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-    return NextResponse.json({ error: "Longitude must be between -180 and 180." }, { status: 400 });
-  }
-
-  if (Number.isFinite(accuracy) && accuracy > 200) {
-    return NextResponse.json({
-      error: "GPS accuracy is too poor. Please enable better location accuracy and try again.",
-    }, { status: 422 });
-  }
-
   try {
-    const worker = await prisma.worker.findUnique({ where: { id: session.userId }, select: { id: true } });
+    const worker = await prisma.worker.findUnique({
+      where: { id: session.userId },
+      select: { id: true, isActive: true, selectedSiteId: true },
+    });
 
-    if (!worker) {
-      return NextResponse.json({ error: "Worker not found." }, { status: 404 });
+    if (!worker || !worker.isActive) {
+      return NextResponse.json({ error: "Worker not found or inactive." }, { status: 404 });
     }
 
-    const site = await prisma.site.findFirst({ where: { id: parsed.data.siteId, isActive: true } });
+    if (!worker.selectedSiteId) {
+      return NextResponse.json({ error: "Select an active work site before marking attendance." }, { status: 422 });
+    }
+    if (worker.selectedSiteId !== parsed.data.siteId) {
+      return NextResponse.json({ error: "Your selected work site has changed. Refresh the page and try again." }, { status: 409 });
+    }
+
+    const site = await prisma.site.findFirst({ where: { id: worker.selectedSiteId, isActive: true } });
     if (!site) {
       return NextResponse.json({ error: "Selected work site is not active or no longer exists." }, { status: 422 });
     }
@@ -81,8 +68,8 @@ export async function POST(request: Request) {
     }
 
     const distanceFromSiteMeters = haversineDistanceMeters(
-      latitude,
-      longitude,
+      parsed.data.latitude,
+      parsed.data.longitude,
       Number(site.latitude),
       Number(site.longitude),
     );
@@ -91,7 +78,7 @@ export async function POST(request: Request) {
     if (!withinRadius) {
       return NextResponse.json({ error: "You are outside the allowed work-site area.", distanceFromSiteMeters, allowedRadiusMeters: site.allowedRadiusMeters, status: "OUTSIDE_SITE" }, { status: 422 });
     }
-    const status = "PRESENT";
+    const status = "IN_PROGRESS";
 
     const checkInTime = new Date();
     const attendance = await prisma.attendance.create({
@@ -100,8 +87,8 @@ export async function POST(request: Request) {
         siteId: site.id,
         attendanceDate,
         checkInTime,
-        latitude: latitude,
-        longitude: longitude,
+        latitude: parsed.data.latitude,
+        longitude: parsed.data.longitude,
         distanceFromSiteMeters: distanceFromSiteMeters,
         status,
       },
