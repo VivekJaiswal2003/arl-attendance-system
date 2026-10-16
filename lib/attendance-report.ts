@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { indiaDateKey } from "@/lib/time";
+import { indiaDateKey } from "./time.ts";
 
 export const REPORT_STATUSES = ["PRESENT", "IN_PROGRESS", "COMPLETED", "OUTSIDE_SITE"] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
@@ -33,9 +33,12 @@ export function normalizeReportFilters(params: {
   };
 }
 
+// `attendanceDate` is a DATE column that Prisma stores as the UTC date of IST
+// midnight (one day early), so the report filters on the real check-in instant
+// within the India-local month instead.
 export function buildReportWhere(start: Date, end: Date, filters: ReportFilters): Prisma.AttendanceWhereInput {
   return {
-    attendanceDate: { gte: start, lt: end },
+    checkInTime: { gte: start, lt: end },
     ...(filters.worker ? { workerId: filters.worker } : {}),
     ...(filters.site ? { siteId: filters.site } : {}),
     ...(filters.status ? { status: filters.status } : {}),
